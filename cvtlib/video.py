@@ -70,13 +70,14 @@ class VideoCapture(object):
 
     def next_frame(self) -> (np.ndarray, bool):
 
+        ret, self.frame = False, None
+
         if self.grab_thread is not None:
             with self.grab_thread.lock:
                 if self.grab_thread.grabbed:
                     ret, self.frame = self.capture.retrieve()
                 else:
                     ret, self.frame = self.capture.read()
-            ret, self.frame = False, None
         else:
             ret, self.frame = self.capture.read()
 
@@ -90,8 +91,6 @@ class VideoCapture(object):
                     self.capture_rate = self.frame_number / (
                         curr_frame_time - self.first_frame_time
                     )
-        else:
-            self.frame = None
 
         return self.frame, ret
 
