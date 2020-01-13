@@ -18,7 +18,7 @@ URL = 'https://github.com/raikel/cvtlib'
 EMAIL = 'raikelbl@gmail.com'
 AUTHOR = 'Raikel Bordon'
 REQUIRES_PYTHON = '>=3.6.0'
-VERSION = '0.1.0'
+VERSION = '0.4.0'
 
 # What packages are required for this module to be executed?
 REQUIRED = [

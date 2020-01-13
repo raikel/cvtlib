@@ -1,31 +1,84 @@
 import cv2
 import numpy as np
-from time import time
+from time import time, sleep
 from typing import List
+from threading import Thread, Lock
+
+
+FRAME_RATE_RANGE = [1, 60]
+DEFAULT_FRAME_RATE = 25
+
+
+class GrabThread(Thread):
+
+    def __init__(self, capture: cv2.VideoCapture, interval: float = 0.04):
+        super().__init__(daemon=True)
+        self._run = False
+        self.lock = Lock()
+        self.capture = capture
+        self.grabbed = False
+        self.interval = interval
+
+    def run(self):
+        self._run = True
+        while self._run:
+            sleep(self.interval)
+            with self.lock:
+                self.grabbed = self.capture.grab()
+
+    def stop(self):
+        self._run = False
 
 
 class VideoCapture(object):
-    def __init__(self, src):
+    def __init__(
+        self,
+        src: str,
+        auto_grab: bool = False,
+        measure_framerate: bool = False
+    ):
         self.source = src
+        self.auto_grab: bool = auto_grab
+        self.measure_framerate: bool = measure_framerate
         # noinspection PyTypeChecker
         self.capture: cv2.VideoCapture = None
         # noinspection PyTypeChecker
         self.frame: np.ndarray = None
         self.frame_number: int = 0
         self.first_frame_time = 0
-        self.measure_framerate = False
         self.capture_rate = 0
+        # noinspection PyTypeChecker
+        self.grab_thread: GrabThread = None
 
     def open(self):
         if self.capture is None:
             self.frame = None
             self.capture = cv2.VideoCapture(self.source)
+
             if not self.capture.isOpened():
                 raise self.InvalidSource(f'Unable to open video source {self.source}.')
 
+            if self.auto_grab:
+                try:
+                    fps = self.frame_rate
+                except AttributeError:
+                    fps = DEFAULT_FRAME_RATE
+                if fps < FRAME_RATE_RANGE[0] or fps > FRAME_RATE_RANGE[1]:
+                    fps = DEFAULT_FRAME_RATE
+                self.grab_thread = GrabThread(self.capture, 1/fps)
+                self.grab_thread.start()
+
     def next_frame(self) -> (np.ndarray, bool):
 
-        ret, self.frame = self.capture.read()
+        if self.grab_thread is not None:
+            with self.grab_thread.lock:
+                if self.grab_thread.grabbed:
+                    ret, self.frame = self.capture.retrieve()
+                else:
+                    ret, self.frame = self.capture.read()
+            ret, self.frame = False, None
+        else:
+            ret, self.frame = self.capture.read()
 
         if ret:
             self.frame_number = self.frame_number + 1
@@ -109,7 +162,8 @@ class VideoCapture(object):
         frames = []
         video_length = int(self.capture.get(cv2.CAP_PROP_FRAME_COUNT)) - 1
         if video_length > count:
-            frames_ind = np.array(video_length * np.arange(0.1, 0.9, 0.9 / (count - 1)), np.int32)
+            pos = np.arange(0.1, 0.9, 0.9 / (count - 1))
+            frames_ind = np.array(video_length * pos, np.int32)
 
             for ind in frames_ind:
                 self.goto_frame(ind)
@@ -125,6 +179,8 @@ class VideoCapture(object):
         return frames
 
     def release(self):
+        if self.grab_thread is not None:
+            self.grab_thread.stop()
         self.capture.release()
 
     class InvalidSource(ValueError):
