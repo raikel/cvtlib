@@ -56,7 +56,7 @@ class VideoCapture(object):
             self.capture = cv2.VideoCapture(self.source)
 
             if not self.capture.isOpened():
-                raise self.InvalidSource(f'Unable to open video source {self.source}.')
+                raise ValueError(f'Unable to open video source {self.source}.')
 
             if self.auto_grab:
                 try:
@@ -137,7 +137,15 @@ class VideoCapture(object):
             frame_count = int(self.capture.get(cv2.CAP_PROP_FRAME_COUNT))
             return frame_count / fps
         except:
-            raise AttributeError('Duration property not supported.')
+            raise AttributeError('Duration in seconds property not supported.')
+
+    @property
+    def duration_frames(self):
+        try:
+            frame_count = int(self.capture.get(cv2.CAP_PROP_FRAME_COUNT))
+            return frame_count
+        except:
+            raise AttributeError('Duration in frames property not supported.')
 
     @property
     def frame_rate(self):
@@ -181,9 +189,6 @@ class VideoCapture(object):
         if self.grab_thread is not None:
             self.grab_thread.stop()
         self.capture.release()
-
-    class InvalidSource(ValueError):
-        pass
 
 
 class VideoWriter(object):
