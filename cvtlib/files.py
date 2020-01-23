@@ -10,12 +10,11 @@ def list_files(
 ):
     file_paths = []
     for ext in extensions:
+        root_path_ext = path.join(root_path, f'*{ext}')
+        file_paths.extend(iglob(root_path_ext, recursive=False))
         if recursive:
             root_path_ext = path.join(root_path, f'**/*{ext}')
             file_paths.extend(iglob(root_path_ext, recursive=True))
-        else:
-            root_path_ext = path.join(root_path, f'*{ext}')
-            file_paths.extend(iglob(root_path_ext, recursive=False))
 
     return file_paths
 
